@@ -1,0 +1,1282 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ObservaFamilia — Painel com Prontuário</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <style>
+    :root{
+      --purple-dark: #2b0b4a;
+      --blue-dark: #0b2a4a;
+      --accent: #7b4bff;
+      --muted: #9aa4b2;
+      --card: #0f1720;
+      --bg: #071021;
+      --glass: rgba(255,255,255,0.03);
+      --drawer-bg: rgba(5,8,18,0.82);
+      --danger: #d9534f;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;color:#E6EEF3;background:linear-gradient(180deg,var(--bg),#031024 120%);}
+    .app{display:flex;min-height:100vh;position:relative}
+    .sidebar{width:260px;padding:24px;background:linear-gradient(180deg,var(--purple-dark),var(--blue-dark));color:#fff;display:flex;flex-direction:column;gap:18px}
+    .brand{font-weight:700;font-size:20px;letter-spacing:0.2px}
+    .logo{display:inline-block;height:36px;width:36px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#4b7bff);margin-right:12px;vertical-align:middle}
+    .menu{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+    .menu button{background:transparent;border:0;color:rgba(255,255,255,0.9);padding:8px 10px;border-radius:8px;text-align:left;cursor:pointer}
+    .menu button.active{background:rgba(255,255,255,0.08)}
+    .main{flex:1;padding:24px;display:flex;flex-direction:column;gap:18px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .search{background:var(--glass);padding:10px 12px;border-radius:10px;color:#fff;min-width:280px;color:#E6EEF3 !important;}
+    .filters{display:flex;gap:8px;align-items:center}
+    .filters select, .filters input{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px 10px;border-radius:8px;color:#E6EEF3 !important;}
+    .row{display:flex;gap:18px}
+    .cards{display:flex;gap:12px;flex:1}
+    .card{flex:1;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px;border-radius:12px;min-height:86px;color:#e8f0f8}
+    .card h3{margin:0;font-size:13px;color:var(--muted)}
+    .card p{margin:8px 0 0;font-size:22px;font-weight:700}
+    .content{display:flex;gap:18px;align-items:flex-start}
+    .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:16px;border-radius:12px;flex:1;color:#e8f0f8}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    table thead th{color:var(--muted);text-align:left;padding:8px;border-bottom:1px solid rgba(255,255,255,0.03)}
+    table tbody td{padding:10px;border-bottom:1px dashed rgba(255,255,255,0.02)}
+    .chip{display:inline-block;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.03);font-size:12px}
+    .small{font-size:12px;color:var(--muted)}
+    .actions{display:flex;gap:8px}
+    button.btn{background:linear-gradient(90deg,var(--accent),#4bb8ff);border:0;padding:8px 12px;border-radius:8px;color:#051022;cursor:pointer;font-weight:600}
+    .ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#fff;padding:8px 10px;border-radius:8px;cursor:pointer}
+    footer{color:var(--muted);font-size:13px;padding:8px 0;text-align:center}
+    .view{display:none}
+    .view.active{display:block}
+    .drawer-backdrop{position:fixed;inset:0;background:rgba(2,4,10,0.45);z-index:60;display:flex;justify-content:flex-end;transition:opacity .25s ease}
+    .drawer{width:720px;max-width:92%;height:100vh;background:linear-gradient(180deg, rgba(15,17,28,0.94), rgba(7,9,18,0.95));padding:18px;color:#e8f0f8;box-shadow: -30px 0 80px rgba(2,6,20,0.6);overflow:auto}
+    .drawer .drawer-header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.03);margin-bottom:12px}
+    .tabs{display:flex;gap:6px}
+    .tab{padding:8px 12px;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer}
+    .tab.active{background:linear-gradient(90deg,var(--accent),#4bb8ff);color:#051022;font-weight:700}
+    .form-row{display:flex;gap:8px;margin-bottom:10px;align-items:center}
+    .form-row input, .form-row select, .form-row textarea{flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#e8f0f8}
+    textarea{min-height:100px}
+    .field-label{font-size:12px;color:var(--muted);margin-bottom:6px}
+    .member-list, .history-list, .attachments-list{margin-top:8px;display:flex;flex-direction:column;gap:8px}
+    .member-item, .history-item, .attachment-item{padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .meta{font-size:12px;color:var(--muted)}
+    .danger{background:var(--danger);color:white;border-radius:8px;padding:8px 10px;border:0;cursor:pointer}
+    .small-btn{padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff;cursor:pointer}
+    .readonly-field{background:rgba(255,255,255,0.05) !important;color:#9aa4b2 !important;}
+    .kpi-card-1 { background: linear-gradient(180deg, rgba(123, 75, 255, 0.1), rgba(123, 75, 255, 0.05)) !important; }
+    .kpi-card-2 { background: linear-gradient(180deg, rgba(75, 123, 255, 0.1), rgba(75, 123, 255, 0.05)) !important; }
+    .kpi-card-3 { background: linear-gradient(180deg, rgba(255, 75, 123, 0.1), rgba(255, 75, 123, 0.05)) !important; }
+    @media(max-width:900px){.sidebar{display:none}.row{flex-direction:column}.cards{flex-direction:row;overflow:auto}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div style="display:flex;align-items:center">
+        <div class="logo" aria-hidden></div>
+        <div>
+          <div class="brand">ObservaFamilia</div>
+          <div class="small">Painel de cruzamento de dados sociais</div>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-item active" data-view="overview">Visão geral</button>
+        <button class="menu-item" data-view="familias">Famílias</button>
+        <button class="menu-item" data-view="servicos">Serviços</button>
+        <button class="menu-item" data-view="relatorios">Relatórios</button>
+        <button class="menu-item" data-view="config">Configurações</button>
+      </div>
+      <div style="margin-top:auto">
+        <div class="small">Usuário: Coordenador(a) • ObservaFamilia v0.1</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div class="search" id="globalSearch" contenteditable="true" role="search" aria-label="Pesquisar">Buscar por família, NIS ou CPF</div>
+          <div class="filters">
+            <select id="filter-neighborhood"><option value="">Todos os bairros</option></select>
+            <select id="filter-service"><option value="">Todos os serviços</option></select>
+            <select id="filter-status"><option value="">Todas as situações</option><option value="Acompanhadas">Acompanhadas</option><option value="Encerradas">Encerradas</option></select>
+            <button class="ghost" onclick="resetFilters()">Limpar</button>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn" id="exportAllBtn">Exportar CSV</button>
+          <button class="ghost" id="profileBtn">Perfil</button>
+        </div>
+      </div>
+
+      <!-- OVERVIEW -->
+      <section class="view active" id="overview">
+        <div class="row">
+          <div class="cards" style="flex:1">
+            <div class="card kpi-card-1">
+              <h3>Famílias cadastradas</h3>
+              <p id="kpi-families">0</p>
+              <div class="small">Atualizado: <span id="kpi-date">--/--/----</span></div>
+            </div>
+            <div class="card kpi-card-2">
+              <h3>Atendimentos ativos</h3>
+              <p id="kpi-services">0</p>
+              <div class="small">Últimos 30 dias</div>
+            </div>
+            <div class="card kpi-card-3">
+              <h3>Alertas de risco</h3>
+              <p id="kpi-alerts">0</p>
+              <div class="small">Prioridade alta: <span id="kpi-prio">0</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="content" style="margin-top:12px">
+          <section class="panel" style="flex:0.7">
+            <h3 style="margin:0 0 8px">Mapa de vulnerabilidade (placeholder)</h3>
+            <div style="height:240px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));display:flex;align-items:center;justify-content:center;">
+              <div class="small">Mapa interativo com georreferenciamento pode ser integrado aqui.</div>
+            </div>
+
+            <h3 style="margin-top:12px">Lista de famílias recentes</h3>
+            <div style="overflow:auto;max-height:300px;margin-top:8px">
+              <table id="families-recent-table">
+                <thead>
+                  <tr>
+                    <th>Família</th>
+                    <th>NIS</th>
+                    <th>Bairro</th>
+                    <th>Serviços</th>
+                    <th>Situação</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+
+          <aside class="panel" style="flex:0.45">
+            <h3 style="margin:0 0 8px">Indicadores</h3>
+            <canvas id="chart-services-overview" height="260"></canvas>
+
+            <div style="margin-top:12px;display:flex;gap:8px;flex-direction:column">
+              <div class="chip" id="chip-beneficio">Famílias com beneficio ativo: 0</div>
+              <div class="chip" id="chip-criancas">Crianças sem matrícula: 0</div>
+              <div class="chip" id="chip-encaminhamentos">Encaminhamentos pendentes: 0</div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- FAMILIAS VIEW -->
+      <section class="view" id="familias">
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h3 style="margin:0">Lista de Famílias</h3>
+            <div class="actions">
+              <input id="familiasFilter" class="ghost" placeholder="Filtrar por bairro, situação..." style="color:#fff" />
+              <button class="btn" id="btnAddFamily">+ Nova Família</button>
+              <button class="ghost" id="btnExportFamilies">Exportar CSV</button>
+            </div>
+          </div>
+
+          <div style="overflow:auto;margin-top:12px">
+            <table id="families-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Família / Responsável</th>
+                  <th>NIS / CPF</th>
+                  <th>Bairro</th>
+                  <th>Serviços</th>
+                  <th>Situação</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SERVIÇOS VIEW -->
+      <section class="view" id="servicos">
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h3 style="margin:0">Serviços</h3>
+            <div class="actions">
+              <input id="servicesFilter" class="ghost" placeholder="Pesquisar serviço, tipo..." style="color:#fff" />
+              <button class="btn" id="btnAddService">+ Novo Serviço</button>
+              <button class="ghost" id="btnExportServices">Exportar CSV</button>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;margin-top:12px;align-items:flex-start">
+            <div style="flex:1;overflow:auto">
+              <table id="services-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Serviço</th>
+                    <th>Tipo</th>
+                    <th>Status</th>
+                    <th>Responsável</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <aside style="width:340px" class="panel">
+              <h3 style="margin-top:0">Resumo por tipo</h3>
+              <canvas id="chart-services" height="200"></canvas>
+              <div style="margin-top:12px">
+                <div class="small">Use os filtros para visualizar distribuições por tipo.</div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <!-- RELATÓRIOS VIEW -->
+      <section class="view" id="relatorios">
+        <div class="panel">
+          <h3 style="margin:0">Gerar Relatórios</h3>
+          <div class="small" style="margin-top:6px">Relatórios rápidos gerados a partir dos dados locais (CSV/PDF simulado).</div>
+
+          <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
+            <div class="card" style="min-width:220px;max-width:320px">
+              <h3>Famílias por Situação</h3>
+              <canvas id="reportSituacao" height="140"></canvas>
+            </div>
+
+            <div class="card" style="min-width:220px;max-width:320px">
+              <h3>Serviços por Tipo</h3>
+              <canvas id="reportServicos" height="140"></canvas>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <button class="btn" id="btnGenerateReport">Gerar PDF (simulação)</button>
+            <button class="ghost" id="btnExportReportCSV">Exportar CSV do relatório</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- CONFIG VIEW -->
+      <section class="view" id="config">
+        <div class="panel">
+          <h3 style="margin:0">Configurações</h3>
+
+          <div style="margin-top:12px">
+            <label class="small">Cor de destaque</label>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="chip color-pill" data-color="#7b4bff" style="background:linear-gradient(90deg,#7b4bff,#4b7bff);color:#051022">Padrão</button>
+              <button class="chip color-pill" data-color="#4b7bff" style="background:linear-gradient(90deg,#4b7bff,#0bb8ff);color:#051022">Azul</button>
+              <button class="chip color-pill" data-color="#0ca678" style="background:linear-gradient(90deg,#0ca678,#2bd68a);color:#051022">Verde</button>
+              <button class="chip color-pill" data-color="#d63384" style="background:linear-gradient(90deg,#d63384,#ff7bb0);color:#051022">Roxo Claro</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <label class="small">Persistência</label>
+            <div class="small">Os dados estão salvos no seu navegador. Você pode limpar os dados locais para reiniciar.</div>
+            <div style="margin-top:8px"><button class="ghost" id="btnClearStorage">Limpar dados locais</button></div>
+          </div>
+
+          <div style="margin-top:16px" class="small">Créditos: ObservaFamilia — Exemplo de visualização. Desenvolvido por protótipo.</div>
+        </div>
+      </section>
+
+      <footer>© ObservaFamilia — Protótipo de visualização • Dados fictícios</footer>
+    </main>
+  </div>
+
+  <!-- DRAWER ROOT -->
+  <div id="drawerRoot" aria-hidden="true"></div>
+
+  <script>
+    const SAMPLE_FAMILIES = [
+      { 
+        id: 'F-001', 
+        name:'Silva, João (Fam. Silva)', 
+        nis:'12345678900', 
+        cpf:'123.456.789-00', 
+        neighborhood:'Centro', 
+        address:'Rua A, 123', 
+        phone:'(11) 98877-6655', 
+        celular: '(11) 98877-6655',
+        services:['PAIF','CRAS'], 
+        status:'Acompanhadas', 
+        children:2, 
+        crianca1: 'Maria Silva',
+        crianca2: 'João Silva Jr',
+        crianca3: '',
+        crianca4: '',
+        crianca5: '',
+        sexo: 'Masculino',
+        periodo: 'Manhã',
+        nomeAtendido: 'João Silva',
+        dataNascimento: '1980-05-15',
+        rg: '12.345.678-9',
+        escola: 'Escola Municipal Centro',
+        beneficio: 'Bolsa Família',
+        pp: 'Sim',
+        psb: 'Não',
+        eca: 'Não',
+        dataInsercao: '2023-01-10',
+        responsavel: 'João Silva',
+        rgResponsavel: '12.345.678-9',
+        cpfResponsavel: '123.456.789-00',
+        nisResponsavel: '12345678900',
+        composition:[{name:'João (pai)',age:40,relation:'Responsável'},{name:'Maria (mãe)',age:38,relation:'Cônjuge'}], 
+        notes:'Observações iniciais', 
+        prontuario:[], 
+        history:[], 
+        attachments:[] 
+      }
+    ];
+    const SAMPLE_SERVICES = [
+      { id:'S-101', service:'PAIF', tipo:'Assistência Social', status:'Ativo', responsavel:'Equipe A' },
+      { id:'S-102', service:'SCFV', tipo:'Serviço de convivência', status:'Ativo', responsavel:'Equipe B' },
+      { id:'S-103', service:'CRAS', tipo:'Apoio institucional', status:'Ativo', responsavel:'Posto' },
+    ];
+
+    const LS_FAM = 'of_families_v2';
+    const LS_SVC = 'of_services_v2';
+    const LS_CFG = 'of_cfg_v2';
+
+    let families = [];
+    let services = [];
+    let config = { accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#7b4bff' };
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      loadState();
+      bindMenu();
+      setupFiltersOptions();
+      renderOverview();
+      renderFamiliesTable();
+      renderServicesTable();
+      setupButtons();
+      renderReports();
+    });
+
+    function saveState(){
+      localStorage.setItem(LS_FAM, JSON.stringify(families));
+      localStorage.setItem(LS_SVC, JSON.stringify(services));
+      localStorage.setItem(LS_CFG, JSON.stringify(config));
+    }
+    
+    function loadState(){
+      families = JSON.parse(localStorage.getItem(LS_FAM) || 'null') || JSON.parse(JSON.stringify(SAMPLE_FAMILIES));
+      services = JSON.parse(localStorage.getItem(LS_SVC) || 'null') || JSON.parse(JSON.stringify(SAMPLE_SERVICES));
+      const cfg = JSON.parse(localStorage.getItem(LS_CFG) || 'null');
+      if(cfg){ config = cfg; document.documentElement.style.setProperty('--accent', config.accent); updateAccentButtons(); }
+    }
+
+    function bindMenu(){
+      document.querySelectorAll('.menu-item').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          document.querySelectorAll('.menu-item').forEach(b=>b.classList.remove('active'));
+          btn.classList.add('active');
+          const view = btn.dataset.view;
+          document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+          document.getElementById(view).classList.add('active');
+          if(view === 'relatorios') renderReports();
+          if(view === 'overview') renderOverview();
+        });
+      });
+    }
+
+    function setupFiltersOptions(){
+      const nbSet = new Set(families.map(f=>f.neighborhood));
+      const svcSet = new Set();
+      services.forEach(s=>svcSet.add(s.service));
+
+      const nbSel = document.getElementById('filter-neighborhood');
+      nbSel.innerHTML = '<option value="">Todos os bairros</option>';
+      nbSet.forEach(nb => {
+        const opt = document.createElement('option'); opt.value = nb; opt.textContent = nb; nbSel.appendChild(opt);
+      });
+
+      const svcSel = document.getElementById('filter-service');
+      svcSel.innerHTML = '<option value="">Todos os serviços</option>';
+      svcSet.forEach(sv => {
+        const opt = document.createElement('option'); opt.value = sv; opt.textContent = sv; svcSel.appendChild(opt);
+      });
+
+      const statusSel = document.getElementById('filter-status');
+      statusSel.innerHTML = '<option value="">Todas as situações</option><option value="Acompanhadas">Acompanhadas</option><option value="Encerradas">Encerradas</option>';
+
+      nbSel.addEventListener('change', applyFilters);
+      svcSel.addEventListener('change', applyFilters);
+      statusSel.addEventListener('change', applyFilters);
+      document.getElementById('globalSearch').addEventListener('input', onSearchInputDebounced);
+      document.getElementById('globalSearch').addEventListener('keyup', onSearchInputDebounced);
+    }
+
+    function applyFilters(){
+      const nb = document.getElementById('filter-neighborhood').value;
+      const svc = document.getElementById('filter-service').value;
+      const status = document.getElementById('filter-status').value;
+      const q = (document.getElementById('globalSearch').innerText || '').trim().toLowerCase();
+
+      let filtered = families.slice();
+      if(nb) filtered = filtered.filter(f => f.neighborhood === nb);
+      if(svc) filtered = filtered.filter(f => (f.services || []).includes(svc));
+      if(status) filtered = filtered.filter(f => f.status === status);
+      if(q) filtered = filtered.filter(f => (f.name + ' ' + (f.nis||'') + ' ' + (f.neighborhood||'') + ' ' + (f.status||'')).toLowerCase().includes(q));
+
+      renderFamiliesTable(filtered);
+    }
+
+    let searchTimer = null;
+    function onSearchInputDebounced(){
+      if(searchTimer) clearTimeout(searchTimer);
+      searchTimer = setTimeout(()=>{ applyFilters(); }, 250);
+    }
+
+    function resetFilters(){
+      document.getElementById('filter-neighborhood').value = '';
+      document.getElementById('filter-service').value = '';
+      document.getElementById('filter-status').value = '';
+      document.getElementById('globalSearch').innerText = 'Buscar por família, NIS ou CPF';
+      renderFamiliesTable();
+    }
+
+    function renderOverview(){
+      document.getElementById('kpi-families').innerText = families.length;
+      document.getElementById('kpi-services').innerText = services.length ? services.length : 0;
+      const alerts = families.filter(f => (f.status||'').toLowerCase().includes('prioridade') || (f.status||'').toLowerCase().includes('vuln')).length;
+      document.getElementById('kpi-alerts').innerText = alerts;
+      document.getElementById('kpi-prio').innerText = families.filter(f=>f.status === 'Prioridade').length;
+      document.getElementById('kpi-date').innerText = new Date().toLocaleDateString('pt-BR');
+
+      const tbody = document.querySelector('#families-recent-table tbody');
+      tbody.innerHTML = '';
+      families.slice(0,8).forEach(f=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(f.name)}</td>
+          <td>${escapeHtml(f.nis||'—')}</td>
+          <td>${escapeHtml(f.neighborhood||'—')}</td>
+          <td>${(f.services && f.services.length) ? f.services.join(', ') : '<span class="small">—</span>'}</td>
+          <td><span class="chip">${escapeHtml(f.status||'—')}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const ctx = document.getElementById('chart-services-overview').getContext('2d');
+      const counts = {};
+      services.forEach(s => counts[s.service] = (counts[s.service]||0)+1);
+      const labels = Object.keys(counts);
+      const data = Object.values(counts);
+      if(window.overviewChart) window.overviewChart.destroy();
+      window.overviewChart = new Chart(ctx, {
+        type:'doughnut',
+        data:{ labels, datasets:[{ data, hoverOffset:6 }] },
+        options:{ plugins:{ legend:{ position:'bottom', labels:{ color:'#cfe6ff' } } } }
+      });
+
+      const familiasComBeneficio = families.filter(f => (f.services||[]).length > 0).length;
+      document.getElementById('chip-beneficio').innerText = `Famílias com beneficio ativo: ${familiasComBeneficio}`;
+      document.getElementById('chip-criancas').innerText = `Crianças sem matrícula: ${families.filter(f=>f.children && f.children>0).length}`;
+      document.getElementById('chip-encaminhamentos').innerText = `Encaminhamentos pendentes: ${Math.floor(familiasComBeneficio * 0.08)}`;
+    }
+
+    function renderFamiliesTable(list){
+      const data = list || families;
+      const tbody = document.querySelector('#families-table tbody');
+      tbody.innerHTML = '';
+      data.forEach(f=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(f.id)}</td>
+          <td>${escapeHtml(f.name)}</td>
+          <td>${escapeHtml(f.nis||'—')}</td>
+          <td>${escapeHtml(f.neighborhood||'—')}</td>
+          <td>${(f.services && f.services.length)? escapeHtml(f.services.join(', ')) : '<span class="small">—</span>'}</td>
+          <td><span class="chip">${escapeHtml(f.status||'—')}</span></td>
+          <td>
+            <div class="actions">
+              <button class="ghost" onclick="openFamilyDrawer('${f.id}', 'view')">Visualizar</button>
+              <button class="ghost" onclick="openFamilyDrawer('${f.id}','edit')">Editar</button>
+              <button class="danger" onclick="deleteFamily('${f.id}')">Remover</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      renderOverview();
+      setupFiltersOptions();
+    }
+
+    window.deleteFamily = function(id){
+      if(!confirm('Remover família '+id+'?')) return;
+      families = families.filter(f=>f.id !== id);
+      saveState();
+      renderFamiliesTable();
+      renderReports();
+    }
+
+    document.getElementById('btnAddFamily').addEventListener('click', ()=> openFamilyDrawer(null,'create'));
+
+    function calcularIdade(dataNascimento) {
+      if (!dataNascimento) return '';
+      const hoje = new Date();
+      const nascimento = new Date(dataNascimento);
+      let idade = hoje.getFullYear() - nascimento.getFullYear();
+      const mes = hoje.getMonth() - nascimento.getMonth();
+      if (mes < 0 || (mes === 0 && hoje.getDate() < nascimento.getDate())) {
+        idade--;
+      }
+      return idade;
+    }
+
+    function openFamilyDrawer(id=null, mode='view'){
+      const existing = id ? families.find(f=>f.id===id) : null;
+      const root = document.getElementById('drawerRoot');
+      root.innerHTML = '';
+      const backdrop = document.createElement('div'); backdrop.className = 'drawer-backdrop';
+      const drawer = document.createElement('div'); drawer.className = 'drawer';
+      
+      const isViewMode = mode === 'view';
+      const readonlyClass = isViewMode ? 'readonly-field' : '';
+      const readonlyAttr = isViewMode ? 'readonly' : '';
+      
+      drawer.innerHTML = `
+        <div class="drawer-header">
+          <div>
+            <div style="font-weight:700;font-size:16px">${existing? escapeHtml(existing.name) : (mode==='create' ? 'Nova Família' : 'Perfil da Família')}</div>
+            <div class="small" style="margin-top:6px">${existing? 'ID: ' + escapeHtml(existing.id) : ''}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div style="display:flex" class="tabs">
+              <div class="tab active" data-tab="dados">Dados</div>
+              <div class="tab" data-tab="historico">Histórico / Anexos</div>
+            </div>
+            <button class="small-btn" id="closeDrawer">Fechar</button>
+          </div>
+        </div>
+
+        <div class="drawer-body">
+          <!-- DADOS -->
+          <div class="tab-view" id="tab-dados">
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">ID</div>
+                <input id="fm_id" placeholder="ID (ex: F-006)" value="${existing?escapeHtml(existing.id):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+              <div style="flex:1">
+                <div class="field-label">Data de Inserção</div>
+                <input id="fm_data_insercao" type="date" value="${existing?escapeHtml(existing.dataInsercao||''):new Date().toISOString().slice(0,10)}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">Nome do Atendido</div>
+                <input id="fm_nome_atendido" placeholder="Nome completo" value="${existing?escapeHtml(existing.nomeAtendido||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+              <div style="flex:1">
+                <div class="field-label">Sexo</div>
+                <select id="fm_sexo" class="${readonlyClass}" ${isViewMode ? 'disabled' : ''}>
+                  <option value="Masculino" ${existing && existing.sexo==='Masculino'?'selected':''}>Masculino</option>
+                  <option value="Feminino" ${existing && existing.sexo==='Feminino'?'selected':''}>Feminino</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">Data de Nascimento</div>
+                <input id="fm_data_nascimento" type="date" value="${existing?escapeHtml(existing.dataNascimento||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+              <div style="flex:1">
+                <div class="field-label">Idade</div>
+                <input id="fm_idade" value="${existing && existing.dataNascimento ? calcularIdade(existing.dataNascimento) : ''}" class="readonly-field" readonly />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">RG</div>
+                <input id="fm_rg" placeholder="RG" value="${existing?escapeHtml(existing.rg||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+              <div style="flex:1">
+                <div class="field-label">CPF</div>
+                <input id="fm_cpf" placeholder="CPF" value="${existing?escapeHtml(existing.cpf||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">NIS</div>
+                <input id="fm_nis" placeholder="NIS" value="${existing?escapeHtml(existing.nis||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+              <div style="flex:1">
+                <div class="field-label">Período</div>
+                <select id="fm_periodo" class="${readonlyClass}" ${isViewMode ? 'disabled' : ''}>
+                  <option value="Manhã" ${existing && existing.periodo==='Manhã'?'selected':''}>Manhã</option>
+                  <option value="Tarde" ${existing && existing.periodo==='Tarde'?'selected':''}>Tarde</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">Escola</div>
+                <input id="fm_escola" placeholder="Escola" value="${existing?escapeHtml(existing.escola||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+              <div style="flex:1">
+                <div class="field-label">Benefício</div>
+                <input id="fm_beneficio" placeholder="Benefício" value="${existing?escapeHtml(existing.beneficio||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">Público Prioritário (PP)</div>
+                <select id="fm_pp" class="${readonlyClass}" ${isViewMode ? 'disabled' : ''}>
+                  <option value="Sim" ${existing && existing.pp==='Sim'?'selected':''}>Sim</option>
+                  <option value="Não" ${existing && existing.pp==='Não'?'selected':''}>Não</option>
+                </select>
+              </div>
+              <div style="flex:1">
+                <div class="field-label">PSB</div>
+                <select id="fm_psb" class="${readonlyClass}" ${isViewMode ? 'disabled' : ''}>
+                  <option value="Sim" ${existing && existing.psb==='Sim'?'selected':''}>Sim</option>
+                  <option value="Não" ${existing && existing.psb==='Não'?'selected':''}>Não</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">ECA</div>
+                <select id="fm_eca" class="${readonlyClass}" ${isViewMode ? 'disabled' : ''}>
+                  <option value="Sim" ${existing && existing.eca==='Sim'?'selected':''}>Sim</option>
+                  <option value="Não" ${existing && existing.eca==='Não'?'selected':''}>Não</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">Responsável</div>
+                <input id="fm_responsavel" placeholder="Responsável" value="${existing?escapeHtml(existing.responsavel||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">Endereço</div>
+                <input id="fm_address" placeholder="Endereço completo" value="${existing?escapeHtml(existing.address||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+              <div style="flex:1">
+                <div class="field-label">Bairro</div>
+                <input id="fm_neigh" placeholder="Bairro" value="${existing?escapeHtml(existing.neighborhood||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">Telefone</div>
+                <input id="fm_phone" placeholder="Telefone" value="${existing?escapeHtml(existing.phone||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+              <div style="flex:1">
+                <div class="field-label">Celular</div>
+                <input id="fm_celular" placeholder="Celular" value="${existing?escapeHtml(existing.celular||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">RG do Responsável</div>
+                <input id="fm_rg_responsavel" placeholder="RG do Responsável" value="${existing?escapeHtml(existing.rgResponsavel||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+              <div style="flex:1">
+                <div class="field-label">CPF do Responsável</div>
+                <input id="fm_cpf_responsavel" placeholder="CPF do Responsável" value="${existing?escapeHtml(existing.cpfResponsavel||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">NIS do Responsável</div>
+                <input id="fm_nis_responsavel" placeholder="NIS do Responsável" value="${existing?escapeHtml(existing.nisResponsavel||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">Crianças Participantes (máx. 5)</div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">Criança 1</div>
+                <input id="fm_crianca1" placeholder="Nome da criança" value="${existing?escapeHtml(existing.crianca1||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+              <div style="flex:1">
+                <div class="field-label">Criança 2</div>
+                <input id="fm_crianca2" placeholder="Nome da criança" value="${existing?escapeHtml(existing.crianca2||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+            </div>
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">Criança 3</div>
+                <input id="fm_crianca3" placeholder="Nome da criança" value="${existing?escapeHtml(existing.crianca3||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+              <div style="flex:1">
+                <div class="field-label">Criança 4</div>
+                <input id="fm_crianca4" placeholder="Nome da criança" value="${existing?escapeHtml(existing.crianca4||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+            </div>
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">Criança 5</div>
+                <input id="fm_crianca5" placeholder="Nome da criança" value="${existing?escapeHtml(existing.crianca5||''):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">Serviços vinculados (separe por vírgula)</div>
+                <input id="fm_services" placeholder="PAIF, CRAS" value="${existing?escapeHtml((existing.services||[]).join(', ')):''}" class="${readonlyClass}" ${readonlyAttr} />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">Situação</div>
+                <select id="fm_status" class="${readonlyClass}" ${isViewMode ? 'disabled' : ''}>
+                  <option value="Acompanhadas">Acompanhadas</option>
+                  <option value="Encerradas">Encerradas</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div style="flex:1">
+                <div class="field-label">Observações do técnico</div>
+                <textarea id="fm_notes" placeholder="Observações" class="${readonlyClass}" ${readonlyAttr}>${existing?escapeHtml(existing.notes||''):''}</textarea>
+              </div>
+            </div>
+
+            ${!isViewMode ? `
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+              ${existing? '<button class="ghost" id="btnDeleteFamilyDrawer">Remover</button>':''}
+              <button class="ghost" id="btnCancelDrawer">Cancelar</button>
+              <button class="btn" id="btnSaveFamily">${existing? 'Salvar' : 'Criar'}</button>
+            </div>
+            ` : ''}
+          </div>
+
+          <!-- HISTÓRICO / ANEXOS -->
+          <div class="tab-view" id="tab-historico" style="display:none">
+            <div class="small field-label">Adicionar histórico rápido</div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <input id="hist_date" type="date" style="width:160px" class="${readonlyClass}" ${readonlyAttr} />
+              <input id="hist_author" placeholder="Autor / Equipe" style="width:200px" class="${readonlyClass}" ${readonlyAttr} />
+            </div>
+            <div style="margin-top:8px">
+              <textarea id="hist_text" placeholder="Descrição do ocorrido, encaminhamento, observações" class="${readonlyClass}" ${readonlyAttr}></textarea>
+            </div>
+
+            ${!isViewMode ? `
+            <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+              <input type="file" id="hist_file" />
+              <button class="btn" id="btnAddHistory">Adicionar histórico + arquivo</button>
+            </div>
+            ` : ''}
+
+            <div style="margin-top:12px">
+              <div class="small field-label">Histórico</div>
+              <div id="history-list" class="history-list"></div>
+            </div>
+
+            <div style="margin-top:12px">
+              <div class="small field-label">Anexos</div>
+              <div id="attachments-list" class="attachments-list"></div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      backdrop.appendChild(drawer);
+      root.appendChild(backdrop);
+      root.setAttribute('aria-hidden','false');
+
+      const tabs = drawer.querySelectorAll('.tab');
+      const tabViews = drawer.querySelectorAll('.tab-view');
+      function setTab(name){
+        tabs.forEach(t=> t.classList.toggle('active', t.dataset.tab===name));
+        tabViews.forEach(v=> v.style.display = v.id === 'tab-'+name ? 'block' : 'none');
+      }
+      tabs.forEach(t=> t.addEventListener('click', ()=> setTab(t.dataset.tab)));
+      setTab('dados');
+
+      if(existing){
+        const sel = drawer.querySelector('#fm_status');
+        for(const opt of sel.options) if(opt.value === existing.status){ opt.selected = true; break; }
+      } else {
+        const today = new Date().toISOString().slice(0,10);
+        drawer.querySelector('#hist_date').value = today;
+      }
+
+      drawer.querySelector('#fm_data_nascimento').addEventListener('change', function() {
+        const idade = calcularIdade(this.value);
+        drawer.querySelector('#fm_idade').value = idade;
+      });
+
+      drawer.querySelector('#closeDrawer').addEventListener('click', ()=> closeDrawer());
+      backdrop.addEventListener('click', (e)=>{ if(e.target === backdrop) closeDrawer(); });
+
+      if (!isViewMode) {
+        drawer.querySelector('#btnCancelDrawer').addEventListener('click', ()=> closeDrawer());
+
+        drawer.querySelector('#btnSaveFamily').addEventListener('click', ()=> {
+          const idv = drawer.querySelector('#fm_id').value.trim();
+          const nomeAtendido = drawer.querySelector('#fm_nome_atendido').value.trim();
+          const sexo = drawer.querySelector('#fm_sexo').value;
+          const dataNascimento = drawer.querySelector('#fm_data_nascimento').value;
+          const rg = drawer.querySelector('#fm_rg').value.trim();
+          const cpf = drawer.querySelector('#fm_cpf').value.trim();
+          const nis = drawer.querySelector('#fm_nis').value.trim();
+          const periodo = drawer.querySelector('#fm_periodo').value;
+          const escola = drawer.querySelector('#fm_escola').value.trim();
+          const beneficio = drawer.querySelector('#fm_beneficio').value.trim();
+          const pp = drawer.querySelector('#fm_pp').value;
+          const psb = drawer.querySelector('#fm_psb').value;
+          const eca = drawer.querySelector('#fm_eca').value;
+          const dataInsercao = drawer.querySelector('#fm_data_insercao').value;
+          const responsavel = drawer.querySelector('#fm_responsavel').value.trim();
+          const address = drawer.querySelector('#fm_address').value.trim();
+          const neigh = drawer.querySelector('#fm_neigh').value.trim();
+          const phone = drawer.querySelector('#fm_phone').value.trim();
+          const celular = drawer.querySelector('#fm_celular').value.trim();
+          const rgResponsavel = drawer.querySelector('#fm_rg_responsavel').value.trim();
+          const cpfResponsavel = drawer.querySelector('#fm_cpf_responsavel').value.trim();
+          const nisResponsavel = drawer.querySelector('#fm_nis_responsavel').value.trim();
+          const crianca1 = drawer.querySelector('#fm_crianca1').value.trim();
+          const crianca2 = drawer.querySelector('#fm_crianca2').value.trim();
+          const crianca3 = drawer.querySelector('#fm_crianca3').value.trim();
+          const crianca4 = drawer.querySelector('#fm_crianca4').value.trim();
+          const crianca5 = drawer.querySelector('#fm_crianca5').value.trim();
+          const servicesTxt = drawer.querySelector('#fm_services').value.trim();
+          const svcs = servicesTxt ? servicesTxt.split(',').map(s=>s.trim()).filter(Boolean) : [];
+          const status = drawer.querySelector('#fm_status').value;
+          const notes = drawer.querySelector('#fm_notes').value.trim();
+
+          if(!idv || !nomeAtendido){ alert('ID e Nome do Atendido obrigatórios'); return; }
+
+          if(existing){
+            existing.id = idv;
+            existing.nomeAtendido = nomeAtendido;
+            existing.sexo = sexo;
+            existing.dataNascimento = dataNascimento;
+            existing.rg = rg;
+            existing.cpf = cpf;
+            existing.nis = nis;
+            existing.periodo = periodo;
+            existing.escola = escola;
+            existing.beneficio = beneficio;
+            existing.pp = pp;
+            existing.psb = psb;
+            existing.eca = eca;
+            existing.dataInsercao = dataInsercao;
+            existing.responsavel = responsavel;
+            existing.address = address;
+            existing.neighborhood = neigh;
+            existing.phone = phone;
+            existing.celular = celular;
+            existing.rgResponsavel = rgResponsavel;
+            existing.cpfResponsavel = cpfResponsavel;
+            existing.nisResponsavel = nisResponsavel;
+            existing.crianca1 = crianca1;
+            existing.crianca2 = crianca2;
+            existing.crianca3 = crianca3;
+            existing.crianca4 = crianca4;
+            existing.crianca5 = crianca5;
+            existing.services = svcs;
+            existing.status = status;
+            existing.notes = notes;
+            existing.name = `${responsavel} (Fam. ${responsavel.split(' ')[0]})`;
+          } else {
+            if(families.some(x=>x.id === idv)){ alert('ID já existe'); return; }
+            const newF = { 
+              id:idv, 
+              nomeAtendido, 
+              sexo, 
+              dataNascimento, 
+              rg, 
+              cpf, 
+              nis, 
+              periodo, 
+              escola, 
+              beneficio, 
+              pp, 
+              psb, 
+              eca, 
+              dataInsercao, 
+              responsavel, 
+              address, 
+              neighborhood:neigh, 
+              phone, 
+              celular,
+              rgResponsavel, 
+              cpfResponsavel, 
+              nisResponsavel,
+              crianca1,
+              crianca2,
+              crianca3,
+              crianca4,
+              crianca5,
+              services:svcs, 
+              status, 
+              notes, 
+              name: `${responsavel} (Fam. ${responsavel.split(' ')[0]})`,
+              prontuario:[], 
+              history:[], 
+              attachments:[] 
+            };
+            families.unshift(newF);
+          }
+          saveState();
+          renderFamiliesTable();
+          renderReports();
+          closeDrawer();
+        });
+
+        const delBtn = drawer.querySelector('#btnDeleteFamilyDrawer');
+        if(delBtn){
+          delBtn.addEventListener('click', ()=>{
+            if(!confirm('Remover família ' + existing.id + '?')) return;
+            families = families.filter(f=>f.id !== existing.id);
+            saveState();
+            renderFamiliesTable();
+            renderReports();
+            closeDrawer();
+          });
+        }
+      }
+
+      const historyListEl = drawer.querySelector('#history-list');
+      const attachmentsListEl = drawer.querySelector('#attachments-list');
+
+      function renderHistory(){
+        historyListEl.innerHTML = '';
+        const arr = existing ? (existing.history||[]) : (drawer._tempHistory||[]);
+        (arr.slice().reverse()).forEach(h=>{
+          const el = document.createElement('div'); el.className='history-item';
+          el.innerHTML = `<div>
+              <div style="font-weight:700">${escapeHtml(h.author||'—')}</div>
+              <div class="meta">${escapeHtml(h.date||'')} • ${escapeHtml(h.note||'')}</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              ${h.file ? `<button class="small-btn" onclick="downloadAttachment('${existing?existing.id:''}','${h.file.id}')">Baixar</button>` : ''}
+            </div>`;
+          historyListEl.appendChild(el);
+        });
+      }
+
+      function renderAttachments(){
+        attachmentsListEl.innerHTML = '';
+        const arr = existing ? (existing.attachments||[]) : (drawer._tempAttach||[]);
+        (arr.slice().reverse()).forEach(a=>{
+          const el = document.createElement('div'); el.className='attachment-item';
+          el.innerHTML = `<div>
+            <div style="font-weight:700">${escapeHtml(a.name)}</div>
+            <div class="meta">${escapeHtml(a.type)} • ${escapeHtml(a.sizeReadable||'—')} • ${escapeHtml(a.date||'')}</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="small-btn" onclick="downloadAttachment('${existing?existing.id:''}','${a.id}')">Baixar</button>
+          </div>`;
+          attachmentsListEl.appendChild(el);
+        });
+      }
+
+      if (!isViewMode) {
+        drawer.querySelector('#btnAddHistory').addEventListener('click', async ()=>{
+          const date = drawer.querySelector('#hist_date').value || new Date().toISOString().slice(0,10);
+          const author = drawer.querySelector('#hist_author').value.trim() || 'Equipe';
+          const note = drawer.querySelector('#hist_text').value.trim();
+          const fileInput = drawer.querySelector('#hist_file');
+
+          if(!note && fileInput.files.length === 0){ alert('Adicione texto ou um arquivo'); return; }
+
+          let fileMeta = null;
+          if(fileInput.files.length > 0){
+            const f = fileInput.files[0];
+            fileMeta = { id: 'F-'+Date.now(), name: f.name, type: f.type, size: f.size, date: new Date().toLocaleString('pt-BR') };
+            try{
+              const dataUrl = await fileToDataUrl(f);
+              fileMeta.data = dataUrl;
+              fileMeta.sizeReadable = humanFileSize(f.size);
+            }catch(err){
+              console.error(err);
+              alert('Não foi possível ler o arquivo');
+            }
+          }
+
+          const histEntry = { id: 'H-'+Date.now(), date, author, note, file: fileMeta || null };
+          if(existing){
+            existing.history = existing.history || [];
+            existing.history.push(histEntry);
+            if(fileMeta){
+              existing.attachments = existing.attachments || [];
+              existing.attachments.push(fileMeta);
+            }
+          } else {
+            drawer._tempHistory = drawer._tempHistory || [];
+            drawer._tempHistory.push(histEntry);
+            if(fileMeta){
+              drawer._tempAttach = drawer._tempAttach || [];
+              drawer._tempAttach.push(fileMeta);
+            }
+          }
+          saveState();
+          renderHistory();
+          renderAttachments();
+          drawer.querySelector('#hist_text').value = '';
+          drawer.querySelector('#hist_file').value = '';
+          alert('Histórico adicionado');
+        });
+      }
+
+      renderHistory();
+      renderAttachments();
+
+      window.downloadAttachment = function(famId, fileId){
+        let family = families.find(f=>f.id === famId);
+        let file = null;
+        if(family){
+          file = (family.attachments||[]).find(a=>a.id === fileId) || (family.history||[]).map(h=>h.file).find(ff=>ff && ff.id===fileId);
+        } else {
+          const rootEl = document.getElementById('drawerRoot');
+          const dr = rootEl.querySelector('.drawer');
+          if(dr && dr._tempAttach) file = dr._tempAttach.find(a=>a.id===fileId);
+        }
+        if(!file){ alert('Arquivo não encontrado'); return; }
+        if(file.data){
+          const a = document.createElement('a');
+          a.href = file.data;
+          a.download = file.name;
+          document.body.appendChild(a); a.click(); a.remove();
+        } else {
+          alert('Arquivo sem dados armazenados (fictício)');
+        }
+      };
+
+      function closeDrawer(){
+        root.innerHTML = '';
+        root.setAttribute('aria-hidden','true');
+      }
+    }
+
+    function renderServicesTable(list){
+      const data = list || services;
+      const tbody = document.querySelector('#services-table tbody');
+      tbody.innerHTML = '';
+      data.forEach(s=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(s.id)}</td>
+          <td>${escapeHtml(s.service)}</td>
+          <td>${escapeHtml(s.tipo)}</td>
+          <td>${escapeHtml(s.status)}</td>
+          <td>${escapeHtml(s.responsavel||'—')}</td>
+          <td>
+            <div class="actions">
+              <button class="ghost" onclick="openServiceModal('${s.id}')">Editar</button>
+              <button class="danger" onclick="deleteService('${s.id}')">Remover</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      setupFiltersOptions();
+      renderReports();
+    }
+
+    window.deleteService = function(id){
+      if(!confirm('Remover serviço '+id+'?')) return;
+      services = services.filter(s => s.id !== id);
+      saveState();
+      renderServicesTable();
+    }
+
+    document.getElementById('btnAddService').addEventListener('click', ()=> openServiceModal());
+
+    function openServiceModal(id){
+      const existing = id ? services.find(s=>s.id===id) : null;
+      const modal = document.createElement('div'); modal.className='modal-backdrop';
+      modal.style.zIndex = 70;
+      modal.innerHTML = `<div class="drawer" style="width:640px;max-width:92%">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">${existing? 'Editar Serviço' : 'Novo Serviço'}</div>
+          <div><button class="small-btn" id="closeSvc">Fechar</button></div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="form-row"><input id="sv_id" placeholder="ID (ex: S-200)" value="${existing?escapeHtml(existing.id):''}" /></div>
+          <div class="form-row"><input id="sv_name" placeholder="Nome do serviço" value="${existing?escapeHtml(existing.service):''}" /></div>
+          <div class="form-row"><input id="sv_tipo" placeholder="Tipo" value="${existing?escapeHtml(existing.tipo):''}" /><input id="sv_resp" placeholder="Responsável" value="${existing?escapeHtml(existing.responsavel||''):''}" /></div>
+          <div class="form-row"><select id="sv_status"><option>Ativo</option><option>Inativo</option></select></div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+            <button class="ghost" id="cancelSvc">Cancelar</button>
+            <button class="btn" id="saveSvc">${existing? 'Salvar' : 'Criar'}</button>
+          </div>
+        </div>
+      </div>`;
+      document.body.appendChild(modal);
+      modal.querySelector('#closeSvc').addEventListener('click', ()=> modal.remove());
+      modal.querySelector('#cancelSvc').addEventListener('click', ()=> modal.remove());
+      modal.querySelector('#saveSvc').addEventListener('click', ()=>{
+        const idv = modal.querySelector('#sv_id').value.trim();
+        const name = modal.querySelector('#sv_name').value.trim();
+        const tipo = modal.querySelector('#sv_tipo').value.trim();
+        const resp = modal.querySelector('#sv_resp').value.trim();
+        const status = modal.querySelector('#sv_status').value;
+        if(!idv || !name){ alert('ID e Nome do serviço obrigatórios'); return; }
+        if(existing){
+          existing.id = idv; existing.service = name; existing.tipo = tipo; existing.responsavel = resp; existing.status = status;
+        } else {
+          if(services.some(x=>x.id === idv)){ alert('ID já existe'); return; }
+          services.push({ id:idv, service:name, tipo, responsavel:resp, status });
+        }
+        saveState();
+        renderServicesTable();
+        modal.remove();
+      });
+    }
+
+    let chartSituacao = null;
+    let chartServicos = null;
+    let chartOverviewSrv = null;
+
+    function renderReports(){
+      const situacoes = {};
+      families.forEach(f => { const s = f.status || 'Sem situação'; situacoes[s] = (situacoes[s]||0)+1; });
+      const labels = Object.keys(situacoes);
+      const data = Object.values(situacoes);
+      const ctx1 = document.getElementById('reportSituacao').getContext('2d');
+      if(chartSituacao) chartSituacao.destroy();
+      chartSituacao = new Chart(ctx1, { type:'doughnut', data:{ labels, datasets:[{ data, hoverOffset:6 }] }, options:{ plugins:{ legend:{ position:'bottom' } } } });
+
+      const tipos = {};
+      services.forEach(s => { const t = s.tipo || 'Outros'; tipos[t] = (tipos[t]||0)+1; });
+      const labels2 = Object.keys(tipos);
+      const data2 = Object.values(tipos);
+      const ctx2 = document.getElementById('reportServicos').getContext('2d');
+      if(chartServicos) chartServicos.destroy();
+      chartServicos = new Chart(ctx2, { type:'bar', data:{ labels: labels2, datasets:[{ label:'Quantidade', data: data2 }] }, options:{ plugins:{ legend:{ display:false } } } });
+
+      const ctx3 = document.getElementById('chart-services').getContext('2d');
+      const svcCounts = {};
+      services.forEach(s => svcCounts[s.service] = (svcCounts[s.service]||0)+1);
+      const l3 = Object.keys(svcCounts), d3 = Object.values(svcCounts);
+      if(chartOverviewSrv) chartOverviewSrv.destroy();
+      chartOverviewSrv = new Chart(ctx3, { type:'doughnut', data:{ labels: l3, datasets:[{ data: d3 }] }, options:{ plugins:{ legend:{ position:'bottom' } } } });
+    }
+
+    function downloadCSVFromArray(filename, rows){
+      if(!rows || !rows.length) { alert('Sem dados para exportar'); return; }
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('btnExportFamilies').addEventListener('click', ()=> {
+      const rows = [['ID','Nome','NIS/CPF','Bairro','Serviços','Situação']];
+      families.forEach(f => rows.push([f.id,f.name,f.nis||'',f.neighborhood||'',(f.services||[]).join('; '),f.status||'']));
+      downloadCSVFromArray('familias.csv', rows);
+    });
+
+    document.getElementById('btnExportServices').addEventListener('click', ()=> {
+      const rows = [['ID','Serviço','Tipo','Status','Responsável']];
+      services.forEach(s => rows.push([s.id,s.service,s.tipo,s.status,s.responsavel||'']));
+      downloadCSVFromArray('servicos.csv', rows);
+    });
+
+    document.getElementById('exportAllBtn').addEventListener('click', ()=> {
+      document.getElementById('btnExportFamilies').click();
+      setTimeout(()=> document.getElementById('btnExportServices').click(), 400);
+    });
+
+    document.getElementById('btnExportReportCSV').addEventListener('click', ()=> {
+      const counts = {};
+      families.forEach(f => { const s = f.status || 'Sem situação'; counts[s] = (counts[s]||0)+1; });
+      const rows = [['Situação','Quantidade']];
+      Object.entries(counts).forEach(([k,v]) => rows.push([k,v]));
+      downloadCSVFromArray('relatorio_familias_situacao.csv', rows);
+    });
+
+    document.getElementById('btnGenerateReport').addEventListener('click', ()=> {
+      alert('Simulação: relatório PDF gerado (download fictício). Em integração real, aqui chamaria um serviço que montaria o PDF.');
+    });
+
+    document.querySelectorAll('.color-pill').forEach(b => {
+      b.addEventListener('click', (e)=> {
+        const color = e.currentTarget.dataset.color;
+        document.documentElement.style.setProperty('--accent', color);
+        config.accent = color;
+        saveState();
+        updateAccentButtons();
+      });
+    });
+
+    function updateAccentButtons(){
+      document.querySelectorAll('button.btn').forEach(btn => {
+        btn.style.background = `linear-gradient(90deg, var(--accent), #4bb8ff)`;
+      });
+      document.querySelector('.logo').style.background = `linear-gradient(135deg, var(--accent), #4b7bff)`;
+    }
+
+    document.getElementById('btnClearStorage').addEventListener('click', ()=> {
+      if(confirm('Limpar dados locais? Isso reiniciará para os dados de exemplo.')) {
+        localStorage.removeItem(LS_FAM);
+        localStorage.removeItem(LS_SVC);
+        localStorage.removeItem(LS_CFG);
+        loadState();
+        renderFamiliesTable();
+        renderServicesTable();
+        renderReports();
+        renderOverview();
+        alert('Dados reiniciados para os exemplos.');
+      }
+    });
+
+    function setupButtons(){
+      document.getElementById('familiasFilter').addEventListener('input', (e)=> {
+        const q = e.target.value.trim().toLowerCase();
+        if(!q) { renderFamiliesTable(); return; }
+        const f = families.filter(x => (x.name + ' ' + (x.nis||'') + ' ' + (x.neighborhood||'') + ' ' + (x.status||'')).toLowerCase().includes(q));
+        renderFamiliesTable(f);
+      });
+      document.getElementById('servicesFilter').addEventListener('input', (e)=> {
+        const q = e.target.value.trim().toLowerCase();
+        if(!q) { renderServicesTable(); return; }
+        const s = services.filter(x => (x.service + ' ' + (x.tipo||'') + ' ' + (x.status||'')).toLowerCase().includes(q));
+        renderServicesTable(s);
+      });
+
+      document.getElementById('profileBtn').addEventListener('click', ()=> alert('Perfil — funcionalidade de autenticação não implementada no protótipo.'));
+      updateAccentButtons();
+    }
+
+    function escapeHtml(str){ if(!str && str !== 0) return ''; return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function fileToDataUrl(file){ return new Promise((res,rej)=>{ const r = new FileReader(); r.onload = ()=> res(r.result); r.onerror = rej; r.readAsDataURL(file); }); }
+    function humanFileSize(bytes){ const i = bytes===0?0:Math.floor(Math.log(bytes)/Math.log(1024)); return (bytes / Math.pow(1024, i)).toFixed(2) * 1 + ' ' + ['B','KB','MB','GB','TB'][i]; }
+
+    renderFamiliesTable();
+    renderServicesTable();
+    renderReports();
+  </script>
+</body>
+</html>
